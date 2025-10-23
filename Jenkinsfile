@@ -8,7 +8,7 @@ pipeline {
     }
 
     tools {
-        maven 'Maven' // Must match Jenkins Global Tool Configuration
+        maven 'Maven3' // Must match Jenkins Global Tool Configuration
     }
 
     stages {
