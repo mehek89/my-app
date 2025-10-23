@@ -1,49 +1,56 @@
 pipeline {
     agent any
-    tools {
-        maven 'Maven3'   // Name of Maven in Jenkins Global Tool Configuration
-        jdk 'JDK21'      // Name of JDK in Jenkins Global Tool Configuration
-    }
+
     environment {
-        // Docker Hub credentials added in Jenkins → Credentials
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
+        // Jenkins Credentials IDs
+        DOCKERHUB_CREDENTIALS = 'dockerhub-credentials-id' // replace with your Docker Hub credential ID
+        GIT_CREDENTIALS = 'git-credentials-id'             // replace with your Git credential ID
+        IMAGE_NAME = "mehek08/my-app:latest"
     }
+
     stages {
-        stage('Checkout Source') {
+        stage('Checkout SCM') {
             steps {
-                // Clone your GitHub repo using HTTPS and credentials
-                git branch: 'main',
+                git(
                     url: 'https://github.com/mehek89/my-app.git',
-                    credentialsId: 'git-credentials-id' // Add your GitHub PAT here in Jenkins Credentials
+                    branch: 'main',
+                    credentialsId: "${GIT_CREDENTIALS}"
+                )
             }
         }
+
         stage('Build Java App') {
             steps {
+                // Make sure Maven is configured in Jenkins global tools
+                tool name: 'Maven', type: 'maven'
                 bat 'mvn clean package'
             }
         }
+
         stage('Build Docker Image') {
             steps {
-                bat 'docker build -t mehek08/my-app:latest .'
+                bat "docker build -t ${IMAGE_NAME} ."
             }
         }
-        stage('Push to Docker Hub') {
+
+        stage('Push Docker Image') {
             steps {
-                // Login to Docker Hub using Jenkins credentials
-                bat 'docker login -u %DOCKERHUB_CREDENTIALS_USR% -p %DOCKERHUB_CREDENTIALS_PSW%'
-                bat 'docker push mehek08/my-app:latest'
+                withCredentials([usernamePassword(credentialsId: "${DOCKERHUB_CREDENTIALS}",
+                                                  passwordVariable: 'DOCKERHUB_PSW',
+                                                  usernameVariable: 'DOCKERHUB_USR')]) {
+                    bat 'docker login -u %DOCKERHUB_USR% -p %DOCKERHUB_PSW%'
+                    bat "docker push ${IMAGE_NAME}"
+                }
             }
         }
     }
+
     post {
-        always {
-            echo 'Pipeline finished'
-        }
         success {
-            echo 'Build and Docker Push Successful!'
+            echo "Pipeline completed successfully!"
         }
         failure {
-            echo 'Pipeline Failed!'
+            echo "Pipeline Failed!"
         }
     }
 }
