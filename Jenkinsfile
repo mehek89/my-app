@@ -22,7 +22,7 @@ pipeline {
         stage('Build Java App') {
             steps {
                 // Make sure Maven is configured in Jenkins global tools
-                tool name: 'Maven', type: 'maven'
+                tool name: 'Maven3', type: 'maven'
                 bat 'mvn clean package'
             }
         }
