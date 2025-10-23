@@ -2,60 +2,56 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_USERNAME = 'mehek08'
-        DOCKER_PASSWORD = credentials('dockerhub-creds') // Jenkins Docker Hub credentials
-        GIT_USERNAME = 'mehek89'
-        GIT_PASSWORD = credentials('git-credentials-id') // Jenkins Git credentials
-        DOCKER_PATH = '"C:\\Program Files\\Docker\\Docker\\resources\\bin\\docker.exe"' // Full Docker path
+        // Docker image name
+        IMAGE_NAME = "mydockerapp"
+        IMAGE_TAG = "latest"
+        // Set your credentials ID for GitHub
+        GIT_CREDENTIALS_ID = "9547ac26-588c-4feb-b618-8e7aa2603a83"
     }
 
     stages {
-        stage('Checkout SCM') {
+        stage('Checkout') {
             steps {
-                git branch: 'main',
-                    credentialsId: 'git-credentials-id',
-                    url: 'https://github.com/mehek89/my-app.git'
-            }
-        }
-
-        stage('Verify Tools') {
-            steps {
-                echo 'Checking Maven version...'
-                bat 'mvn -v'
-
-                echo 'Checking Docker version...'
-                bat "${DOCKER_PATH} --version"
-            }
-        }
-
-        stage('Build Java App') {
-            steps {
-                bat 'mvn clean package'
+                echo 'Checking out code from GitHub...'
+                git(
+                    url: 'https://github.com/mehek89/my-app.git',
+                    branch: 'main',
+                    credentialsId: "${GIT_CREDENTIALS_ID}"
+                )
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                bat "${DOCKER_PATH} build -t %DOCKER_USERNAME%/my-app:latest ."
+                echo 'Building Docker image...'
+                script {
+                    docker.build("${IMAGE_NAME}:${IMAGE_TAG}")
+                }
             }
         }
 
-        stage('Push Docker Image') {
+        stage('Run Docker Container') {
             steps {
-                bat """
-                    echo %DOCKER_PASSWORD% | ${DOCKER_PATH} login -u %DOCKER_USERNAME% --password-stdin
-                    ${DOCKER_PATH} push %DOCKER_USERNAME%/my-app:latest
-                """
+                echo 'Running Docker container...'
+                script {
+                    docker.image("${IMAGE_NAME}:${IMAGE_TAG}").run("-d -p 8082:8080 --name myappcontainer")
+                }
             }
         }
     }
 
     post {
         success {
-            echo 'Pipeline Succeeded!'
+            echo 'Pipeline completed successfully!'
         }
         failure {
-            echo 'Pipeline Failed!'
+            echo 'Pipeline failed!'
+        }
+        always {
+            echo 'Cleaning up dangling Docker images...'
+            script {
+                sh "docker image prune -f"
+            }
         }
     }
 }
